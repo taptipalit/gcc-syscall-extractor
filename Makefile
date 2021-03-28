@@ -2,9 +2,9 @@ GCCDIR = /morespace/gcc/install/bin
 
 CXX = $(GCCDIR)/g++-5
 # Flags for the C++ compiler: enable C++11 and all the warnings, -fno-rtti is required for GCC plugins
-CXXFLAGS = -std=c++11 -Wall -fno-rtti  -g
+CXXFLAGS = -std=c++11 -Wall -fno-rtti  -g -O0
 # Workaround for an issue of -std=c++11 and the current GCC headers
-CXXFLAGS += -Wno-literal-suffix -g
+CXXFLAGS += -Wno-literal-suffix -g -O0
 
 # Determine the plugin-dir and add it to the flags
 PLUGINDIR=$(shell $(CXX) -print-file-name=plugin)

@@ -18,6 +18,7 @@
 #include "gimple-pretty-print.h"
 #include "gimple-iterator.h"
 #include "gimple-walk.h"
+#include "cgraph.h"
 
 // We must assert that this plugin is GPL compatible
 int plugin_is_GPL_compatible;
@@ -49,6 +50,16 @@ namespace
 
         virtual unsigned int execute(function *fun) override
         {
+            cgraph_node* node = nullptr;
+            FOR_EACH_DEFINED_FUNCTION(node) {
+                function* const fn = node->get_fun();
+                if (fn) {
+                    std::cerr << "Function name: " << get_name(node->get_fun()->decl) << "\n";
+
+                }
+            }
+
+            /*
             basic_block bb;
             FOR_EACH_BB_FN(bb, fun)
             {
@@ -57,6 +68,7 @@ namespace
                 print_gimple_seq(stderr, bb_info->seq, 0, (0));
                 fprintf(stderr, "\n");
             }
+            */
 
             // Nothing special todo
             return 0;
