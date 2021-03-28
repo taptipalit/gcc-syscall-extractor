@@ -1,0 +1,3 @@
+digraph cfg {
+cc1plus: fatal error: pass ‘free_lang_data’ not found but is referenced by new pass ‘my_first_pass’
+compilation terminated.
