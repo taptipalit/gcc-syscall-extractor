@@ -54,21 +54,42 @@ namespace
             FOR_EACH_DEFINED_FUNCTION(node) {
                 function* const fn = node->get_fun();
                 if (fn) {
-                    std::cerr << "Function name: " << get_name(node->get_fun()->decl) << "\n";
 
+                    struct cgraph_edge *edge;
+
+                    for (edge = node->callees; edge; edge = edge->next_callee) {
+                        struct cgraph_node* callee_node = edge->callee;
+                        std::cerr <<  get_name(node->get_fun()->decl) << " ---> " << get_name(callee_node->decl) << "\n";
+                    }
+                    basic_block bb;
+                    FOR_EACH_BB_FN(bb, fn) {
+                        gimple_stmt_iterator si;
+                        for (si = gsi_start_bb (bb); !gsi_end_p (si); gsi_next (&si)) {
+                            gimple stmt = gsi_stmt (si);
+                            /*
+                             * if stmt.code == GIMPLE_ASSIGN ... or something
+                             p gimple_get_lhs(stmt)->var_decl
+                             */
+                            if (gimple_code(stmt) == GIMPLE_ASSIGN) {
+                               
+                                tree t2 = gimple_op(stmt, 1);
+                                if (TREE_CODE(t2) == ADDR_EXPR) {
+                                    // Get the operand, and need to verify if
+                                    // it is a function
+                                    tree type = TREE_TYPE(t2);
+                                    if (TREE_CODE(type) == POINTER_TYPE) {
+                                        tree typetype = TREE_TYPE(type);
+                                        if (TREE_CODE(typetype) == FUNCTION_TYPE) {
+                                            std::cerr << get_name(node->get_fun()->decl) << " ---- " << get_name(t2) << "\n";
+                                        }
+                                    }
+                                }
+                            }
+                            //print_gimple_stmt (stderr, stmt, 0, TDF_SLIM);
+                        }
+                    }
                 }
             }
-
-            /*
-            basic_block bb;
-            FOR_EACH_BB_FN(bb, fun)
-            {
-                fprintf(stderr, "Basic Block %d\n", bb->index);
-                gimple_bb_info *bb_info = &bb->il.gimple;
-                print_gimple_seq(stderr, bb_info->seq, 0, (0));
-                fprintf(stderr, "\n");
-            }
-            */
 
             // Nothing special todo
             return 0;

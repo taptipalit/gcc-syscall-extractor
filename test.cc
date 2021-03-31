@@ -5,6 +5,8 @@ void print_number(int n);
 
 void test(int n)
 {
+    void (*fptr)();
+    fptr = fizz;
     for (int i = 0; i < n; i++)
     {
         bool div_3 = i % 3 == 0;
