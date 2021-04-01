@@ -19,6 +19,7 @@
 #include "gimple-iterator.h"
 #include "gimple-walk.h"
 #include "cgraph.h"
+#include "rtl.h"
 
 #include <boost/tokenizer.hpp>
 #include <boost/algorithm/string/trim.hpp>
@@ -33,6 +34,8 @@
 int plugin_is_GPL_compatible;
 
 static struct plugin_info my_gcc_plugin_info = { "1.0", "This is a very simple plugin" };
+static struct plugin_info rtl_plugin_info = { "1.0", "This is a RTL pass" };
+
 
 
 namespace
@@ -57,6 +60,7 @@ namespace
         {
         }
 
+        /*
         int derive_syscall(gasm* asm_stmt) {
             const char* str = gimple_asm_string(asm_stmt);
             std::string asm_str(str);
@@ -135,6 +139,7 @@ namespace
 
         }
 
+        */
         virtual unsigned int execute(function *fun) override
         {
             cgraph_node* node = nullptr;
@@ -171,7 +176,9 @@ namespace
                                         }
                                     }
                                 }
-                            } else if (gimple_code(stmt) == GIMPLE_ASM) {
+                            }
+                            // We handle the syscall in the RTL pass
+                            /*else if (gimple_code(stmt) == GIMPLE_ASM) {
                                 gasm *asm_stmt = as_a <gasm *> (stmt);
 
                                 int syscallNo = derive_syscall(asm_stmt);
@@ -180,6 +187,7 @@ namespace
                                     std::cerr << get_name(node->get_fun()->decl) << " **** " << syscallNo << "\n";
                                 }
                             }
+                            */
 
                             print_gimple_stmt(stderr, stmt, 0,0);
                         }
@@ -197,15 +205,58 @@ namespace
             return this;
         }
     };
+
+    const pass_data pass_data_syscall_rtl =
+    {
+        RTL_PASS, /* type */
+        "syscall_rtl", /* name */
+        OPTGROUP_NONE, /* optinfo_flags */
+        TV_NONE, /* tv_id */
+        0, /* properties_required */
+        0, /* properties_provided */
+        0, /* properties_destroyed */
+        0, /* todo_flags_start */
+        0 /* todo_flags_finish */
+    };
+
+    class pass_syscall_rtl : public rtl_opt_pass
+    {
+        public:
+            pass_syscall_rtl (gcc::context *ctxt)
+                : rtl_opt_pass (pass_data_syscall_rtl, ctxt)
+            {}
+
+
+            virtual unsigned int execute (function *f) { 
+                std::cerr << " RTL invoked\n";
+                cgraph_node* node = nullptr;
+                FOR_EACH_DEFINED_FUNCTION(node) {
+                    function* const fn = node->get_fun();
+                    if (fn) {
+                        std::cerr << "RTL function: " << get_name(fn->decl) << "\n";
+                        basic_block bb;
+                        rtx_insn* instruction;
+                        FOR_EACH_BB_FN(bb, fn) {
+                            FOR_BB_INSNS(bb, instruction) {
+                                print_rtl(stderr, instruction);
+                            }
+                        }
+
+                    }
+                }
+                return 0;
+            }
+
+    }; // class pass_regrename
+
+
 }
 
 int plugin_init (struct plugin_name_args *plugin_info,
-		struct plugin_gcc_version *version)
-{
+		struct plugin_gcc_version *version) {
 	// We check the current gcc loading this plugin against the gcc we used to
 	// created this plugin
-	if (!plugin_default_version_check (version, &gcc_version))
-    {
+	if (!plugin_default_version_check (version, &gcc_version)) {
         std::cerr << "This GCC plugin is for version " << GCCPLUGIN_VERSION_MAJOR << "." << GCCPLUGIN_VERSION_MINOR << "\n";
 		return 1;
     }
@@ -213,6 +264,7 @@ int plugin_init (struct plugin_name_args *plugin_info,
     register_callback(plugin_info->base_name,
             /* event */ PLUGIN_INFO,
             /* callback */ NULL, /* user_data */ &my_gcc_plugin_info);
+
 
     // Register the phase right after cfg
     struct register_pass_info pass_info;
@@ -223,6 +275,22 @@ int plugin_init (struct plugin_name_args *plugin_info,
     pass_info.pos_op = PASS_POS_INSERT_AFTER;
 
     register_callback (plugin_info->base_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &pass_info);
+
+
+    // For RTL
+    register_callback(plugin_info->base_name,
+            /* event */ PLUGIN_INFO,
+            /* callback */ NULL, /* user_data */ &rtl_plugin_info);
+
+    // Register the phase right after eh_ranges
+    struct register_pass_info rtl_pass_info;
+
+    rtl_pass_info.pass = new pass_syscall_rtl(g);
+    rtl_pass_info.reference_pass_name = "eh_ranges";
+    rtl_pass_info.ref_pass_instance_number = 1;
+    rtl_pass_info.pos_op = PASS_POS_INSERT_AFTER;
+
+    register_callback (plugin_info->base_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &rtl_pass_info);
 
     return 0;
 }
