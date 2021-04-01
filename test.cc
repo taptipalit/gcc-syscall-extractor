@@ -20,5 +20,7 @@ void test(int n)
         else
             print_number(i);
     }
+    asm("mov $1, %rax");
+    asm("mov $0, %rax \n\t syscall\n\t");
 }
 
