@@ -58,6 +58,7 @@ namespace
         my_first_pass(gcc::context *ctx)
             : simple_ipa_opt_pass(my_first_pass_data, ctx)
         {
+            std::cerr << "Created gimple pass\n";
         }
 
         /*
@@ -143,6 +144,7 @@ namespace
         virtual unsigned int execute(function *fun) override
         {
             cgraph_node* node = nullptr;
+            std::cerr << "Ran GIMPLE pass\n";
             FOR_EACH_DEFINED_FUNCTION(node) {
                 function* const fn = node->get_fun();
                 if (fn) {
@@ -228,21 +230,23 @@ namespace
 
 
             virtual unsigned int execute (function *f) { 
-                std::cerr << " RTL invoked\n";
-                cgraph_node* node = nullptr;
-                FOR_EACH_DEFINED_FUNCTION(node) {
-                    function* const fn = node->get_fun();
-                    if (fn) {
-                        std::cerr << "RTL function: " << get_name(fn->decl) << "\n";
-                        basic_block bb;
+                if (f) {
+                    std::cerr << "RTL function: " << get_name(f->decl) << "\n";
+                    basic_block bb;
+                    FOR_EACH_BB_FN(bb, f) {
                         rtx_insn* instruction;
-                        FOR_EACH_BB_FN(bb, fn) {
-                            FOR_BB_INSNS(bb, instruction) {
-                                print_rtl(stderr, instruction);
-                            }
-                        }
+                        FOR_BB_INSNS(bb, instruction) {
+                            if (!INSN_P (instruction))
+                                continue;
+                            std::cerr << "Printed one instruction\n";
+                            if (GET_CODE (PATTERN (instruction)) == ASM_INPUT) {
 
+                                //print_rtl(stderr, instruction);
+                            }
+                            //std::cerr << "Instruction code: " << INSN_CODE(instruction) << "\n";
+                        }
                     }
+
                 }
                 return 0;
             }
@@ -261,6 +265,7 @@ int plugin_init (struct plugin_name_args *plugin_info,
 		return 1;
     }
 
+    std::cerr << "Initialized plugin\n";
     register_callback(plugin_info->base_name,
             /* event */ PLUGIN_INFO,
             /* callback */ NULL, /* user_data */ &my_gcc_plugin_info);

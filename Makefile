@@ -1,6 +1,8 @@
 GCCDIR = /morespace/gcc/install/bin
 
 CXX = $(GCCDIR)/g++-5
+CC = $(GCCDIR)/gcc-5
+
 # Flags for the C++ compiler: enable C++11 and all the warnings, -fno-rtti is required for GCC plugins
 CXXFLAGS = -std=c++11 -Wall -fno-rtti  -g -O0
 # Workaround for an issue of -std=c++11 and the current GCC headers
@@ -22,8 +24,8 @@ syscall_extractor.o : syscall_extractor.cc
 clean:
 	rm -f syscall_extractor.o syscall_extractor.so
 
-check: syscall_extractor.so test.cc
-	$(CXX) -fplugin=./syscall_extractor.so -c test.cc -o /dev/null # 2> test.dot
+check: syscall_extractor.so test.c
+	$(CC) -O0 -fplugin=./syscall_extractor.so -c test.c -o /dev/null # 2> test.dot
 
 .PHONY: all clean check
 
