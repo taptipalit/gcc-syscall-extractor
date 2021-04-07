@@ -31,7 +31,6 @@ void test(int n)
 {
     void (*fptr)();
     fptr = fizz;
-    /*
     for (int i = 0; i < n; i++)
     {
         int div_3 = i % 3 == 0;
@@ -45,11 +44,12 @@ void test(int n)
         else
             print_number(i);
     }
-    */
+    /*
     asm("syscall");
     asm("syscall");
     asm("syscall");
     asm("movl $2, %eax;\n\tsyscall;
+    */
 
 }
 

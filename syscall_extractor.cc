@@ -238,10 +238,10 @@ namespace
                         FOR_BB_INSNS(bb, instruction) {
                             if (!INSN_P (instruction))
                                 continue;
-                            std::cerr << "Printed one instruction\n";
+                            //std::cerr << "Printed one instruction\n";
                             if (GET_CODE (PATTERN (instruction)) == ASM_INPUT) {
 
-                                //print_rtl(stderr, instruction);
+                                print_rtl(stderr, instruction);
                             }
                             //std::cerr << "Instruction code: " << INSN_CODE(instruction) << "\n";
                         }
@@ -254,6 +254,10 @@ namespace
     }; // class pass_regrename
 
 
+}
+
+void on_rtl_plugin_finish(void *gcc_data, void *user_data) {
+    std::cerr << "Invoked plugin finish\n";
 }
 
 int plugin_init (struct plugin_name_args *plugin_info,
@@ -286,6 +290,11 @@ int plugin_init (struct plugin_name_args *plugin_info,
     register_callback(plugin_info->base_name,
             /* event */ PLUGIN_INFO,
             /* callback */ NULL, /* user_data */ &rtl_plugin_info);
+
+    register_callback(plugin_info->base_name,
+            /* event */ PLUGIN_FINISH,
+            /* callback */ on_rtl_plugin_finish, /* user_data */ NULL);
+
 
     // Register the phase right after eh_ranges
     struct register_pass_info rtl_pass_info;
