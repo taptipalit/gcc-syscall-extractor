@@ -21,9 +21,11 @@
 #include "cgraph.h"
 #include "rtl.h"
 
+/*
 #include <boost/tokenizer.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/algorithm/string.hpp>
+*/
 
 #include <vector>
 #include <algorithm>
@@ -144,7 +146,7 @@ namespace
         virtual unsigned int execute(function *fun) override
         {
             cgraph_node* node = nullptr;
-            std::cerr << "Ran GIMPLE pass\n";
+            std::cerr << "digraph callgraph {\n";
             FOR_EACH_DEFINED_FUNCTION(node) {
                 function* const fn = node->get_fun();
                 if (fn) {
@@ -153,13 +155,17 @@ namespace
 
                     for (edge = node->callees; edge; edge = edge->next_callee) {
                         struct cgraph_node* callee_node = edge->callee;
-                        std::cerr <<  get_name(node->get_fun()->decl) << " ---> " << get_name(callee_node->decl) << "\n";
+                        std::cerr <<  "\"" << get_name(node->get_fun()->decl) << "\"" << " -> " << "\"" << get_name(callee_node->decl) << "\"" << " [style=solid];\n";
                     }
                     basic_block bb;
                     FOR_EACH_BB_FN(bb, fn) {
                         gimple_stmt_iterator si;
                         for (si = gsi_start_bb (bb); !gsi_end_p (si); gsi_next (&si)) {
+#if __GNUC__ <= 5
                             gimple stmt = gsi_stmt (si);
+#else
+                            gimple* stmt = gsi_stmt(si);
+#endif
                             /*
                              * if stmt.code == GIMPLE_ASSIGN ... or something
                              p gimple_get_lhs(stmt)->var_decl
@@ -174,7 +180,7 @@ namespace
                                     if (TREE_CODE(type) == POINTER_TYPE) {
                                         tree typetype = TREE_TYPE(type);
                                         if (TREE_CODE(typetype) == FUNCTION_TYPE) {
-                                            std::cerr << get_name(node->get_fun()->decl) << " ---- " << get_name(t2) << "\n";
+                                            std::cerr <<  "\"" << get_name(node->get_fun()->decl) << "\"" << " -> " << "\"" << get_name(t2) << "\"" << " [style=dotted];\n";
                                         }
                                     }
                                 }
@@ -191,12 +197,13 @@ namespace
                             }
                             */
 
-                            print_gimple_stmt(stderr, stmt, 0,0);
+                            //print_gimple_stmt(stderr, stmt, 0,0);
                         }
                     }
                 }
             }
 
+            std::cerr << "}\n";
             // Nothing special todo
             return 0;
         }
@@ -230,6 +237,7 @@ namespace
 
 
             virtual unsigned int execute (function *f) { 
+                /*
                 if (f) {
                     std::cerr << "RTL function: " << get_name(f->decl) << "\n";
                     basic_block bb;
@@ -248,6 +256,7 @@ namespace
                     }
 
                 }
+                */
                 return 0;
             }
 

@@ -31,6 +31,7 @@ void test(int n)
 {
     void (*fptr)();
     fptr = fizz;
+    printf("hello\n");
     for (int i = 0; i < n; i++)
     {
         int div_3 = i % 3 == 0;
