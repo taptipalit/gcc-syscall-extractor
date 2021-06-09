@@ -25,6 +25,7 @@ clean:
 	rm -f syscall_extractor.o syscall_extractor.so
 
 check: syscall_extractor.so test.c
+	rm -f *.confine
 	$(CC) -O0 -fplugin=./syscall_extractor.so -c test.c -o /dev/null # 2> test.dot
 
 .PHONY: all clean check

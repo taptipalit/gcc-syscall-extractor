@@ -1,5 +1,5 @@
 #include <iostream>
-
+#include <fstream>
 // This is the first gcc header to be included
 #include "gcc-plugin.h"
 #include "plugin-version.h"
@@ -57,6 +57,11 @@ namespace
 
     struct my_first_pass : simple_ipa_opt_pass
     {
+        private:
+            std::ofstream outfile;
+
+        public:
+
         my_first_pass(gcc::context *ctx)
             : simple_ipa_opt_pass(my_first_pass_data, ctx)
         {
@@ -67,21 +72,23 @@ namespace
         virtual unsigned int execute(function *fun) override
         {
             symtab_node* snode;
-            /*
-            FOR_EACH_SYMBOL (snode) {
-                tree attrs = lookup_attribute ("weak", DECL_ATTRIBUTES (snode->decl));
-                if (attrs) {
-                    std::cerr << get_name(snode->decl) << " is a weak alias to " << TREE_VALUE(attrs) << "\n";
-                }
-            }
-            */
+
             cgraph_node* node = nullptr;
-            std::cerr << "==============================digraph callgraph {\n";
             FOR_EACH_DEFINED_FUNCTION(node) {
+                
+
                 if (node->alias) {
                     cgraph_node* alias_node = node->ultimate_alias_target();
                     function* const alias_fn = alias_node->get_fun();
-                    std::cerr << "==============================\"" << get_name(node->decl) << "\"" << " -> " << "\"" << get_name(alias_fn->decl) << "\"" <<  "\n";
+                    if (!outfile.is_open()) {
+                        const char* file_name = LOCATION_FILE(DECL_SOURCE_LOCATION(alias_fn->decl));
+                        // just so we don't screw up file_name
+                        char* base = new char[strlen(file_name)+10];
+                        strcpy(base, file_name);
+                        char* outfile_name = strcat((char*)base, ".confine");
+                        outfile.open(outfile_name, std::ios_base::app);
+                    }
+                    outfile << get_name(node->decl) << " : " << get_name(alias_fn->decl) << "\n";
                 }
                 function* const fn = node->get_fun();
 
@@ -91,7 +98,15 @@ namespace
                     struct cgraph_edge *edge;
                     for (edge = node->callees; edge; edge = edge->next_callee) {
                         struct cgraph_node* callee_node = edge->callee;
-                        std::cerr <<  "==============================\"" << get_name(node->get_fun()->decl) << "\"" << " -> " << "\"" << get_name(callee_node->decl) << "\"" << " [style=solid];\n";
+                        if (!outfile.is_open()) {
+                            const char* file_name = LOCATION_FILE(DECL_SOURCE_LOCATION(node->get_fun()->decl));
+                            // just so we don't screw up file_name
+                            char* base = new char[strlen(file_name)+10];
+                            strcpy(base, file_name);
+                            char* outfile_name = strcat((char*)base, ".confine");
+                            outfile.open(outfile_name, std::ios_base::app);
+                        }
+                        outfile << get_name(node->get_fun()->decl) << " : " << get_name(callee_node->decl) << "\n";
                     }
                     basic_block bb;
                     FOR_EACH_BB_FN(bb, fn) {
@@ -116,7 +131,7 @@ namespace
                                     if (TREE_CODE(type) == POINTER_TYPE) {
                                         tree typetype = TREE_TYPE(type);
                                         if (TREE_CODE(typetype) == FUNCTION_TYPE) {
-                                            std::cerr <<  "==============================\"" << get_name(node->get_fun()->decl) << "\"" << " -> " << "\"" << get_name(t2) << "\"" << " [style=dotted];\n";
+                                            outfile << get_name(node->get_fun()->decl) <<  " : " << get_name(t2) << "\n";
                                         }
                                     }
                                 }
@@ -125,9 +140,11 @@ namespace
                         }
                     }
                 }
+                if (outfile.is_open()) {
+                    outfile.close();
+                }
             }
 
-            std::cerr << "==============================}\n";
             // Nothing special todo
             return 0;
         }
@@ -154,6 +171,8 @@ namespace
 
     class pass_syscall_rtl : public rtl_opt_pass
     {
+        private:
+            std::ofstream outfile;
         public:
             pass_syscall_rtl (gcc::context *ctxt)
                 : rtl_opt_pass (pass_data_syscall_rtl, ctxt)
@@ -197,9 +216,20 @@ namespace
                                                 rtx reg = XEXP(def2, 0);
                                                 if (GET_CODE(reg) == REG) {
                                                     if (REGNO(reg) == syscall_reg_num) {
+                                                        if (!outfile.is_open()) {
+                                                            const char* file_name = LOCATION_FILE(ASM_OPERANDS_SOURCE_LOCATION(body));
+                                                            if (!file_name) {
+                                                                file_name = get_name(f->decl);
+                                                            }
+                                                            // just so we don't screw up file_name
+                                                            char* base = new char[strlen(file_name)+10];
+                                                            strcpy(base, file_name);
+                                                            char* outfile_name = strcat((char*)base, ".confine");
+                                                            outfile.open(outfile_name, std::ios_base::app);
+                                                        }
                                                         // operand?
                                                         int value = XINT(XEXP(def2, 1), 0);
-                                                        std::cerr << "==============================" << get_name(f->decl) << " -> " << " syscall (" << value << ")\n";
+                                                        outfile << "\"" << get_name(f->decl) << " : " << " syscall (" << value << ")\n";
                                                         found_si_set = true;
                                                     }
                                                 }
@@ -224,12 +254,15 @@ namespace
                         FOR_BB_INSNS(bb, instruction) {
                             if (!INSN_P (instruction))
                                 continue;
+
+
                             handle_asm(instruction, f);
                             
                         }
                     }
 
                 }
+                outfile.close();
                 return 0;
             }
 

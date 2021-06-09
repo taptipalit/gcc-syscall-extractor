@@ -80,4 +80,5 @@ void inline __attribute__((always_inline)) DefaultHandler() {
             puts("Default Handler");
 }
 weak_alias( DefaultHandler, Feature1);
+compat_symbol (libm, DefaultHandler, fegetenv, GLIBC_2_1);
 
