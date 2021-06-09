@@ -60,7 +60,7 @@ namespace
         my_first_pass(gcc::context *ctx)
             : simple_ipa_opt_pass(my_first_pass_data, ctx)
         {
-            std::cerr << "Created gimple pass\n";
+            //std::cerr << "Created gimple pass\n";
         }
 
         /*
@@ -185,7 +185,6 @@ namespace
                                     }
                                 }
                             }
-                            // We handle the syscall in the RTL pass
                             /*else if (gimple_code(stmt) == GIMPLE_ASM) {
                                 gasm *asm_stmt = as_a <gasm *> (stmt);
 
@@ -235,28 +234,77 @@ namespace
                 : rtl_opt_pass (pass_data_syscall_rtl, ctxt)
             {}
 
+            void handle_asm(rtx_insn* insn, function* f) {
+                rtx def = PATTERN(insn);
+                // Keep getting the first operand
+                if (GET_CODE (def) == PARALLEL) {
+                    int op_len = XVECLEN(def, 0);
+                    for (int i = 0; i < op_len; i++) {
+                        rtx temp = XVECEXP(def, 0, i);
+                        if (temp && GET_CODE (temp) == SET) {
+                            rtx body = XEXP(temp, 1);
+                            // https://github.com/gcc-mirror/gcc/blob/master/gcc/rtl.def
+                            // for operands
+                            if (body && GET_CODE (body) == ASM_OPERANDS) {
+                                // if this is a syscall
+                                const char* templ  = XSTR(body, 0);
+                                int syscall_reg_num = -1;
+                                if (strcmp(templ, "syscall") == 0) {
+                                    // Which register number do we care about?
+                                    rtx input_vec = XEXP(body, 3);
+                                    rtx first_input = XVECEXP(body, 3, 0);
+                                    syscall_reg_num =  REGNO(first_input);
+                                    // then find the previous set instruction
+                                    // that wrote to it, by backward
+                                    // analysis
+                                    bool found_si_set = false;
+                                    const rtx_insn* curr = insn;
+                                    while (!found_si_set) {
+                                        const rtx_insn* prev = PREV_INSN(curr);
+                                        if (!prev) break;
+
+                                        rtx def2 = PATTERN(prev);
+                                        if (def2) {
+                                            if (GET_CODE (def2) == SET) {
+                                                // operand 1 is location
+                                                // (REG/MEM/PC) assigned to
+                                                // operand 2 is the value
+                                                rtx reg = XEXP(def2, 0);
+                                                if (GET_CODE(reg) == REG) {
+                                                    if (REGNO(reg) == syscall_reg_num) {
+                                                        // operand?
+                                                        int value = XINT(XEXP(def2, 1), 0);
+                                                        std::cerr << get_name(f->decl) << " -> " << " syscall (" << value << ")\n";
+                                                        found_si_set = true;
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        curr = prev;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             virtual unsigned int execute (function *f) { 
-                /*
                 if (f) {
-                    std::cerr << "RTL function: " << get_name(f->decl) << "\n";
+                    //std::cerr << "RTL function: " << get_name(f->decl) << "\n";
                     basic_block bb;
                     FOR_EACH_BB_FN(bb, f) {
                         rtx_insn* instruction;
                         FOR_BB_INSNS(bb, instruction) {
                             if (!INSN_P (instruction))
                                 continue;
-                            //std::cerr << "Printed one instruction\n";
-                            if (GET_CODE (PATTERN (instruction)) == ASM_INPUT) {
-
-                                print_rtl(stderr, instruction);
-                            }
-                            //std::cerr << "Instruction code: " << INSN_CODE(instruction) << "\n";
+                            handle_asm(instruction, f);
+                            
                         }
                     }
 
                 }
-                */
                 return 0;
             }
 
