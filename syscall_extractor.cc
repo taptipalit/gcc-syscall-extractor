@@ -174,7 +174,7 @@ namespace
                                 // if this is a syscall
                                 const char* templ  = XSTR(body, 0);
                                 int syscall_reg_num = -1;
-                                if (strcmp(templ, "syscall") == 0) {
+                                if (strncmp(templ, "syscall", 7) == 0) {
                                     // Which register number do we care about?
                                     rtx input_vec = XEXP(body, 3);
                                     rtx first_input = XVECEXP(body, 3, 0);
