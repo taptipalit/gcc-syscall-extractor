@@ -63,99 +63,35 @@ namespace
             //std::cerr << "Created gimple pass\n";
         }
 
-        /*
-        int derive_syscall(gasm* asm_stmt) {
-            const char* str = gimple_asm_string(asm_stmt);
-            std::string asm_str(str);
-
-            std::vector<std::string> asm_vec;
-
-            // Does the string contain "syscall"
-            if (boost::contains(asm_str, "syscall")) {
-
-                // We want to track all inline assembly snippets right before
-                // this one
-                gimple curr_asm = asm_stmt;
-                do {
-                    gasm* curr_gimple = as_a <gasm *> (curr_asm);
-                    asm_vec.push_back(gimple_asm_string(curr_gimple));
-                    curr_asm = curr_asm->prev;
-                } while (gimple_code(curr_asm) == GIMPLE_ASM);
-
-                std::reverse(asm_vec.begin(), asm_vec.end());
-
-
-                bool foundRAX = false;
-                int storedVal = -1;
-
-                auto it = asm_vec.begin();
-                for (; it != asm_vec.end(); it++) {
-                    boost::char_separator<char> sep("\n", "+");
-                    boost::tokenizer< boost::char_separator<char> > tok(*it, sep);
-                    for(boost::tokenizer< boost::char_separator<char> >::iterator beg = tok.begin(); beg != tok.end(); ++beg)
-                    {
-                        std::string asm_line = boost::trim_copy(*beg);
-                        // We're interested in mov $0, %rax ... style
-                        // instructions
-                        // And of course the syscall
-
-                        regex_t r1, r2;
-                        int rresult;
-
-                        char *p1 = "\\s*mov\\s*\$[,\\w\\s]*rax\\s*";
-
-                        char *p2 = "mov[ $,0-9]*%rax";
-
-                        if (regcomp (&r1, p2 , REG_EXTENDED | REG_NOSUB) != 0) {
-                            std::cerr << "Regex compilation error!\n";
-                            return -1;
-                        }
-
-                        rresult = regexec(&r1, asm_line.c_str(), 0, NULL, 0); 
-
-                        if (rresult == 0) {
-                            // Match - storing to %rax
-                            std::cerr << "Found store to rax " << asm_line << "\n";
-                        }
-
-
-                        if (regcomp (&r2, "\\s*syscall\\s*", REG_EXTENDED | REG_NOSUB) != 0) {
-                            std::cerr << "Regex compilation error!\n";
-                            return -1;
-                        }
-
-                        rresult = regexec(&r2, asm_line.c_str(), 0, NULL, 0); 
-                        if (rresult == 0) {
-                            // Match;
-                            std::cerr << "Found syscall: " << asm_line << "\n";
-                            std::cerr << "Full asm: " << asm_str << "\n";
-                        }
-
-
-                    }    
-                }
-                return -1;
-                
-            } else {
-                return -1;
-            }
-
-        }
-
-        */
+        
         virtual unsigned int execute(function *fun) override
         {
+            symtab_node* snode;
+            /*
+            FOR_EACH_SYMBOL (snode) {
+                tree attrs = lookup_attribute ("weak", DECL_ATTRIBUTES (snode->decl));
+                if (attrs) {
+                    std::cerr << get_name(snode->decl) << " is a weak alias to " << TREE_VALUE(attrs) << "\n";
+                }
+            }
+            */
             cgraph_node* node = nullptr;
-            std::cerr << "digraph callgraph {\n";
+            std::cerr << "==============================digraph callgraph {\n";
             FOR_EACH_DEFINED_FUNCTION(node) {
+                if (node->alias) {
+                    cgraph_node* alias_node = node->ultimate_alias_target();
+                    function* const alias_fn = alias_node->get_fun();
+                    std::cerr << "==============================\"" << get_name(node->decl) << "\"" << " -> " << "\"" << get_name(alias_fn->decl) << "\"" <<  "\n";
+                }
                 function* const fn = node->get_fun();
+
+
                 if (fn) {
 
                     struct cgraph_edge *edge;
-
                     for (edge = node->callees; edge; edge = edge->next_callee) {
                         struct cgraph_node* callee_node = edge->callee;
-                        std::cerr <<  "\"" << get_name(node->get_fun()->decl) << "\"" << " -> " << "\"" << get_name(callee_node->decl) << "\"" << " [style=solid];\n";
+                        std::cerr <<  "==============================\"" << get_name(node->get_fun()->decl) << "\"" << " -> " << "\"" << get_name(callee_node->decl) << "\"" << " [style=solid];\n";
                     }
                     basic_block bb;
                     FOR_EACH_BB_FN(bb, fn) {
@@ -180,29 +116,18 @@ namespace
                                     if (TREE_CODE(type) == POINTER_TYPE) {
                                         tree typetype = TREE_TYPE(type);
                                         if (TREE_CODE(typetype) == FUNCTION_TYPE) {
-                                            std::cerr <<  "\"" << get_name(node->get_fun()->decl) << "\"" << " -> " << "\"" << get_name(t2) << "\"" << " [style=dotted];\n";
+                                            std::cerr <<  "==============================\"" << get_name(node->get_fun()->decl) << "\"" << " -> " << "\"" << get_name(t2) << "\"" << " [style=dotted];\n";
                                         }
                                     }
                                 }
                             }
-                            /*else if (gimple_code(stmt) == GIMPLE_ASM) {
-                                gasm *asm_stmt = as_a <gasm *> (stmt);
-
-                                int syscallNo = derive_syscall(asm_stmt);
-                                if (syscallNo > -1) {
-                                    // It's a valid
-                                    std::cerr << get_name(node->get_fun()->decl) << " **** " << syscallNo << "\n";
-                                }
-                            }
-                            */
-
                             //print_gimple_stmt(stderr, stmt, 0,0);
                         }
                     }
                 }
             }
 
-            std::cerr << "}\n";
+            std::cerr << "==============================}\n";
             // Nothing special todo
             return 0;
         }
@@ -274,7 +199,7 @@ namespace
                                                     if (REGNO(reg) == syscall_reg_num) {
                                                         // operand?
                                                         int value = XINT(XEXP(def2, 1), 0);
-                                                        std::cerr << get_name(f->decl) << " -> " << " syscall (" << value << ")\n";
+                                                        std::cerr << "==============================" << get_name(f->decl) << " -> " << " syscall (" << value << ")\n";
                                                         found_si_set = true;
                                                     }
                                                 }

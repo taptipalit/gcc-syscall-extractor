@@ -63,6 +63,7 @@ void test(int n)
         else
             print_number(i);
     }
+    DefaultHandler();
     /*
     asm("syscall");
     asm("syscall");
@@ -71,4 +72,12 @@ void test(int n)
     */
 
 }
+
+#define weak_alias(old, new) \
+            extern __typeof(old) new __attribute__((weak, alias(#old)))
+
+void inline __attribute__((always_inline)) DefaultHandler() {
+            puts("Default Handler");
+}
+weak_alias( DefaultHandler, Feature1);
 
