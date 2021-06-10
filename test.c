@@ -80,5 +80,9 @@ void inline __attribute__((always_inline)) DefaultHandler() {
             puts("Default Handler");
 }
 weak_alias( DefaultHandler, Feature1);
-compat_symbol (libm, DefaultHandler, fegetenv, GLIBC_2_1);
+
+__asm__(".symver realpath,realpath@GLIBC_1.2.5");
+compat_symbol (libpthread, __pthread_create_2_0, pthread_create,
+                   GLIBC_2_0);
+
 

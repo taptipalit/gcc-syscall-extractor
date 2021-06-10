@@ -29,7 +29,6 @@
 
 #include <vector>
 #include <algorithm>
-#include <regex.h>
 
 
 // We must assert that this plugin is GPL compatible
@@ -71,12 +70,13 @@ namespace
         
         virtual unsigned int execute(function *fun) override
         {
-            symtab_node* snode;
 
+            //cgraph_node::dump_cgraph(stderr);
+            // The asm doesn't exist here
             cgraph_node* node = nullptr;
+            bool processed_toplev_asm = false;
             FOR_EACH_DEFINED_FUNCTION(node) {
                 
-
                 if (node->alias) {
                     cgraph_node* alias_node = node->ultimate_alias_target();
                     function* const alias_fn = alias_node->get_fun();
@@ -90,10 +90,51 @@ namespace
                     }
                     outfile << get_name(node->decl) << " : " << get_name(alias_fn->decl) << "\n";
                 }
+
                 function* const fn = node->get_fun();
 
 
                 if (fn) {
+                    std::cerr << "Function: " << get_name(fn->decl) << "\n";
+
+                    if (!processed_toplev_asm) {
+                        processed_toplev_asm = true;
+                        asm_node *anode;
+
+                        for (anode = symtab->first_asm_symbol (); anode; anode = anode->next) {
+                            const char* asm_tree = TREE_STRING_POINTER(anode->asm_str);
+                            char* copy = new char[strlen(asm_tree)+1];
+                            strcpy(copy, asm_tree);
+
+                            std::cerr << "found asm node: " << copy << "\n";
+
+                            char* token = strtok((char*)copy, " ,@");
+                            if (token != NULL) {
+                                if (strncmp(token, ".symver", 7) == 0) {
+                                    if (!outfile.is_open()) {
+                                        const char* file_name = LOCATION_FILE(DECL_SOURCE_LOCATION(fn->decl));
+                                        // just so we don't screw up file_name
+                                        char* base = new char[strlen(file_name)+10];
+                                        strcpy(base, file_name);
+                                        char* outfile_name = strcat((char*)base, ".confine");
+                                        outfile.open(outfile_name, std::ios_base::app);
+                                    }
+
+                                    // This is the symbol
+                                    char* sym = strtok(NULL, " ,@");
+
+                                    char* versym = strtok(NULL, " ,@");
+
+                                    if (sym != NULL && versym != NULL) {
+                                        std::cerr << "Found a symver\n";
+                                        outfile << sym << " : " << versym << "\n";
+                                        outfile << versym << " : " << sym << "\n";
+                                    }
+                                }
+                            }
+                        }
+                    }
+
 
                     struct cgraph_edge *edge;
                     for (edge = node->callees; edge; edge = edge->next_callee) {
@@ -229,7 +270,7 @@ namespace
                                                         }
                                                         // operand?
                                                         int value = XINT(XEXP(def2, 1), 0);
-                                                        outfile << "\"" << get_name(f->decl) << " : " << " syscall (" << value << ")\n";
+                                                        outfile << get_name(f->decl) << " : " << " syscall ( " << value << " )\n";
                                                         found_si_set = true;
                                                     }
                                                 }
@@ -246,6 +287,19 @@ namespace
             }
 
             virtual unsigned int execute (function *f) { 
+                symtab_node* snode;
+
+                /*
+                FOR_EACH_SYMBOL (snode) {
+                    snode->debug();
+
+                    tree value = lookup_attribute ("symver", DECL_ATTRIBUTES (snode->decl));
+                    if (value) {
+                        std::cerr << "is a symver\n";
+                    }
+                }
+                */
+
                 if (f) {
                     //std::cerr << "RTL function: " << get_name(f->decl) << "\n";
                     basic_block bb;
@@ -315,7 +369,7 @@ int plugin_init (struct plugin_name_args *plugin_info,
     struct register_pass_info rtl_pass_info;
 
     rtl_pass_info.pass = new pass_syscall_rtl(g);
-    rtl_pass_info.reference_pass_name = "eh_ranges";
+    rtl_pass_info.reference_pass_name = "expand";
     rtl_pass_info.ref_pass_instance_number = 1;
     rtl_pass_info.pos_op = PASS_POS_INSERT_AFTER;
 
