@@ -135,6 +135,8 @@ namespace
                         }
                     }
 
+                    // Do this in RTL because some things seem missing
+                    /*
 
                     struct cgraph_edge *edge;
                     for (edge = node->callees; edge; edge = edge->next_callee) {
@@ -149,6 +151,7 @@ namespace
                         }
                         outfile << get_name(node->get_fun()->decl) << " : " << get_name(callee_node->decl) << "\n";
                     }
+                    */
                     basic_block bb;
                     FOR_EACH_BB_FN(bb, fn) {
                         gimple_stmt_iterator si;
@@ -158,10 +161,7 @@ namespace
 #else
                             gimple* stmt = gsi_stmt(si);
 #endif
-                            /*
-                             * if stmt.code == GIMPLE_ASSIGN ... or something
-                             p gimple_get_lhs(stmt)->var_decl
-                             */
+                            
                             if (gimple_code(stmt) == GIMPLE_ASSIGN) {
                                
                                 tree t2 = gimple_op(stmt, 1);
@@ -219,9 +219,34 @@ namespace
                 : rtl_opt_pass (pass_data_syscall_rtl, ctxt)
             {}
 
-            void handle_asm(rtx_insn* insn, function* f) {
+            void handle_insn(rtx_insn* insn, function* f) {
+                if (!outfile.is_open()) {
+                    const char* file_name = LOCATION_FILE(DECL_SOURCE_LOCATION(f->decl));
+                    if (!file_name) {
+                        file_name = get_name(f->decl);
+                    }
+                    // just so we don't screw up file_name
+                    char* base = new char[strlen(file_name)+10];
+                    strcpy(base, file_name);
+                    char* outfile_name = strcat((char*)base, ".confine");
+                    outfile.open(outfile_name, std::ios_base::app);
+                }
                 rtx def = PATTERN(insn);
-                // Keep getting the first operand
+                if (GET_CODE (def) == SET) 
+                    def = XEXP (def, 1);
+                if (GET_CODE (def) == CALL) {
+                    rtx sym_to_call =  XEXP(def, 0);
+                    rtx sym_ref = XEXP(sym_to_call, 0);
+                    rtx sym_ref2 = XEXP(sym_to_call, 1);
+                    if (GET_CODE (sym_ref) == SYMBOL_REF) {
+                        tree sym_decl = SYMBOL_REF_DECL (sym_ref);
+                        if (TREE_CODE(sym_decl) == FUNCTION_DECL) {
+                            outfile << get_name (f->decl) << " : " << get_name(sym_decl) << "\n";
+                            std::cerr << get_name(sym_decl) << "\n";
+                        }
+                    }
+
+                }
                 if (GET_CODE (def) == PARALLEL) {
                     int op_len = XVECLEN(def, 0);
                     for (int i = 0; i < op_len; i++) {
@@ -257,17 +282,7 @@ namespace
                                                 rtx reg = XEXP(def2, 0);
                                                 if (GET_CODE(reg) == REG) {
                                                     if (REGNO(reg) == syscall_reg_num) {
-                                                        if (!outfile.is_open()) {
-                                                            const char* file_name = LOCATION_FILE(ASM_OPERANDS_SOURCE_LOCATION(body));
-                                                            if (!file_name) {
-                                                                file_name = get_name(f->decl);
-                                                            }
-                                                            // just so we don't screw up file_name
-                                                            char* base = new char[strlen(file_name)+10];
-                                                            strcpy(base, file_name);
-                                                            char* outfile_name = strcat((char*)base, ".confine");
-                                                            outfile.open(outfile_name, std::ios_base::app);
-                                                        }
+
                                                         // operand?
                                                         int value = XINT(XEXP(def2, 1), 0);
                                                         outfile << get_name(f->decl) << " : " << " syscall ( " << value << " )\n";
@@ -284,6 +299,7 @@ namespace
                         }
                     }
                 }
+                outfile.close();
             }
 
             virtual unsigned int execute (function *f) { 
@@ -310,7 +326,7 @@ namespace
                                 continue;
 
 
-                            handle_asm(instruction, f);
+                            handle_insn(instruction, f);
                             
                         }
                     }

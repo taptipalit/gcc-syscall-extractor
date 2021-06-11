@@ -26,7 +26,7 @@ clean:
 
 check: syscall_extractor.so test.c
 	rm -f *.confine
-	$(CC) -O0 -fplugin=./syscall_extractor.so -c test.c -o /dev/null # 2> test.dot
+	$(CC) -O0 -fplugin=./syscall_extractor.so -c -fdump-rtl-expand test.c -o /dev/null # 2> test.dot
 
 .PHONY: all clean check
 
