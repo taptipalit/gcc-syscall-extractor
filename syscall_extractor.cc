@@ -237,12 +237,28 @@ namespace
                 if (GET_CODE (def) == CALL) {
                     rtx sym_to_call =  XEXP(def, 0);
                     rtx sym_ref = XEXP(sym_to_call, 0);
-                    rtx sym_ref2 = XEXP(sym_to_call, 1);
                     if (GET_CODE (sym_ref) == SYMBOL_REF) {
+
+                        // This can be many types here: check out rtl.def for
+                        // the correct compiler version to see more
+
                         tree sym_decl = SYMBOL_REF_DECL (sym_ref);
-                        if (TREE_CODE(sym_decl) == FUNCTION_DECL) {
-                            outfile << get_name (f->decl) << " : " << get_name(sym_decl) << "\n";
-                            std::cerr << get_name(sym_decl) << "\n";
+                        tree op2 = X0TREE(sym_ref, 1);
+                        rtx op1 = XEXP(sym_ref, 0);
+
+                        if (sym_decl) {
+                            if (TREE_CODE(sym_decl) == FUNCTION_DECL) {
+                                tree sym_decl = SYMBOL_REF_DECL (sym_ref);
+                                outfile << get_name (f->decl) << " : " << get_name(sym_decl) << "\n";
+                            }
+                        else if (TREE_CODE(op2) == CONST_STRING) {
+                                const char* func_name = TREE_STRING_POINTER(op2);
+                                outfile << get_name (f->decl) << " : " << func_name << "\n";
+                            }
+                        } else if (op1) {
+                                const char* func_name = XSTR(op1, 0);
+                                outfile << get_name (f->decl) << " : " << func_name << "\n";
+
                         }
                     }
 
