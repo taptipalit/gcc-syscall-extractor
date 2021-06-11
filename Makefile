@@ -1,7 +1,7 @@
 GCCDIR = /morespace/gcc/install/bin
 
-CXX = g++-7  #$(GCCDIR)/g++-5-debug
-CC = gcc-7 #$(GCCDIR)/gcc-5-debug
+CXX = $(GCCDIR)/g++-5-debug
+CC = $(GCCDIR)/gcc-5-debug
 
 # Flags for the C++ compiler: enable C++11 and all the warnings, -fno-rtti is required for GCC plugins
 CXXFLAGS = -std=c++11 -Wall -fno-rtti  -g -O0

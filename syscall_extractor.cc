@@ -243,7 +243,7 @@ namespace
                         // the correct compiler version to see more
 
                         tree sym_decl = SYMBOL_REF_DECL (sym_ref);
-                        tree op2 = X0TREE(sym_ref, 1);
+                        rtx op2 = XEXP(sym_ref, 1);
                         rtx op1 = XEXP(sym_ref, 0);
 
                         if (sym_decl) {
@@ -251,12 +251,14 @@ namespace
                                 tree sym_decl = SYMBOL_REF_DECL (sym_ref);
                                 outfile << get_name (f->decl) << " : " << get_name(sym_decl) << "\n";
                             }
+                            /*
                         else if (TREE_CODE(op2) == CONST_STRING) {
                                 const char* func_name = TREE_STRING_POINTER(op2);
                                 outfile << get_name (f->decl) << " : " << func_name << "\n";
                             }
+                            */
                         } else if (op1) {
-                                const char* func_name = XSTR(op1, 0);
+                                const char* func_name = XSTR(sym_ref, 0);
                                 outfile << get_name (f->decl) << " : " << func_name << "\n";
 
                         }
